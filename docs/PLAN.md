@@ -46,6 +46,10 @@ Pass 2 = real implementation.
   `PORT=81`; `Dockerfile` runs/exposes `81`; `docker-compose.yml` publishes
   `"${APP_PORT:-81}:81"` with the healthcheck on `81`; `.env.example` sets
   `APP_PORT=81`; `vite.config.ts` dev proxy targets `81`.
+  The origin binds **`0.0.0.0:81`** (all interfaces — never loopback-only), so
+  both the tunnel's `http://127.0.0.1:81` dial and the pre-existing EC2 TCP
+  exposure on 81 work; `tests/workspace-architecture.spec.ts` pins this
+  wildcard bind so it cannot drift back to loopback-only.
 
 - [x] M17 -- stub  **Cloudflare Quick Tunnel docs.** Note the intended
   `cloudflared tunnel --url http://127.0.0.1:81` command. *(Subsumed by M17 --
@@ -71,10 +75,13 @@ Pass 2 = real implementation.
   runbook/architecture describe the Cloudflare Quick Tunnel path
   (`cloudflared tunnel --url http://127.0.0.1:81` → `https://*.trycloudflare.com`)
   with no domain / Let's Encrypt / inbound 443, and the tests are re-pinned.
-  Verified this turn: `npm test` → **183 passed** (23 files) and
+  The origin listens on **`0.0.0.0:81`** (all interfaces), and
+  `tests/workspace-architecture.spec.ts` pins the workspace-root
+  `docs/ARCHITECTURE.md` bind-address wording to that wildcard bind.
+  Verified this turn: `npm test` → **186 passed** (24 files) and
   `npm run typecheck` → green (Node 22).
 - **Whole goal delivered.** HTTPS is provided by the Cloudflare Quick Tunnel
-  with the app kept as a plain-HTTP origin on `127.0.0.1:81` — exactly the
+  with the app kept as a plain-HTTP origin (bound on `0.0.0.0:81`; the tunnel dials `127.0.0.1:81`) — exactly the
   requested model: no custom domain, no Let's Encrypt, no inbound 443. Live
   verification runs on the target EC2 box per `app/docs/RUNBOOK.md`:
   `docker compose up -d` → `cloudflared tunnel --url http://127.0.0.1:81` →

@@ -24,7 +24,7 @@ Key points:
 - **No inbound 443**: `cloudflared` makes an *outbound* connection to
   Cloudflare, so the EC2 security group does not need port 443 (nor any other
   inbound port) for the tunnel to work.
-- **Port 81**: the app binds `127.0.0.1:81` (host + container), and the tunnel
+- **Port 81**: the app binds `0.0.0.0:81` (host + container), and the tunnel
   command is `cloudflared tunnel --url http://127.0.0.1:81`.
 
 ## Chosen approach
@@ -58,11 +58,14 @@ Key points:
 - `app/docs/ARCHITECTURE.md` — Quick Tunnel model + port 81.
 - `app/tests/quicktunnel.spec.ts` — pins the runtime `PORT=81` default and the
   Dockerfile / compose / Vite wiring so the origin port cannot silently drift.
+- `app/tests/workspace-architecture.spec.ts` — pins the workspace-root
+  `docs/ARCHITECTURE.md` "Key points" bind-address bullet to the real
+  `app.listen(PORT, "0.0.0.0")` call (wildcard bind, never loopback-only).
 
 ## Status (final this turn)
 
 - All milestones (M16–M18, stub + real) are complete and committed.
-- `npm test` → **183 passed** (23 files); `npm run typecheck` → green (Node 22).
+- `npm test` → **186 passed** (24 files); `npm run typecheck` → green (Node 22).
 - The whole HTTPS-via-Cloudflare-Quick-Tunnel goal is delivered: port-81 origin
   + `cloudflared tunnel --url http://127.0.0.1:81` → `https://*.trycloudflare.com`,
   with no custom domain, no Let's Encrypt, and no inbound 443.
@@ -77,6 +80,12 @@ Key points:
    http://127.0.0.1:81` and drop the Let's Encrypt / reverse-proxy mandate.
 3. **"Nothing binds port 81 or runs the tunnel."** Accepted — port 81 is now
    the default everywhere and the Quick Tunnel command is in the runbook.
+4. **"The architecture documents the origin bind as loopback-only, but the
+   code listens on all interfaces."** Accepted — the bind-address bullet is
+   corrected to `0.0.0.0:81` (the wildcard bind keeps both the tunnel's
+   loopback dial and the EC2 TCP exposure working), `docs/CONTEXT.md` records
+   the "never loopback-only" constraint, and a new
+   `tests/workspace-architecture.spec.ts` pins it mechanically.
 
 None of the points push the project out of scope — they are exactly the goal —
 so nothing is rejected.
